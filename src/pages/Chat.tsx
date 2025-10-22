@@ -191,8 +191,43 @@ const Chat = () => {
     scrollToBottom();
 
     // Handle file upload if present
-    let fileText = "";
+    let extractedText = "";
     if (file) {
+      // Extract text from PDF or image
+      if (file.type === "application/pdf") {
+        try {
+          const pdfjsLib = await import("pdfjs-dist");
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+          
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const textParts = [];
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items
+              .map((item: any) => item.str)
+              .join(" ");
+            textParts.push(pageText);
+          }
+          
+          extractedText = textParts.join("\n\n");
+          
+          toast({
+            title: "PDF processed",
+            description: `Extracted text from ${pdf.numPages} pages`,
+          });
+        } catch (error) {
+          console.error("Error extracting PDF text:", error);
+          toast({
+            title: "PDF processing failed",
+            description: "Could not extract text from PDF",
+            variant: "destructive",
+          });
+        }
+      }
+
       const filePath = `${session.user.id}/${currentConversation}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("legal-documents")
@@ -205,7 +240,7 @@ const Chat = () => {
           variant: "destructive",
         });
       } else {
-        // Save file record
+        // Save file record with extracted text
         await supabase.from("document_uploads").insert([
           {
             conversation_id: currentConversation,
@@ -213,6 +248,7 @@ const Chat = () => {
             file_type: file.type,
             file_size: file.size,
             storage_path: filePath,
+            extracted_text: extractedText || null,
           },
         ]);
       }

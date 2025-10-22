@@ -112,7 +112,7 @@ const ChatMain = ({
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
               className="hidden"
             />
             <Button
